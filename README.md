@@ -42,16 +42,40 @@ pip install -r requirements.txt
 6. Connect your logic to the Streamlit UI in `app.py`.
 7. Refine UML so it matches what you actually built.
 
+## 🛠️ Implementation Summary
+
+The system lives in `pawpal_system.py` and is built from four classes. The UML is in `diagrams/uml.mmd`.
+
+| Class | Role |
+|-------|------|
+| `Task` | One care activity: title, duration, priority, category, recurrence, completion status, owning pet, and an assigned start time. |
+| `Pet` | Holds a pet's details and its own list of tasks (`add_task`, `remove_task`, `edit_task`). |
+| `Owner` | Holds the owner's time budget (`available_minutes`), `day_start`, and all pets. `get_all_tasks()` returns every pet's tasks in one list. |
+| `Scheduler` | The "brain". Builds the daily plan, checks for conflicts, and explains its choices. |
+
+**How they work together**
+
+1. An `Owner` has many `Pet`s, and each `Pet` has many `Task`s. `Pet.add_task` stamps each task with the pet's name so the plan can say who it is for.
+2. `Scheduler` is given an `Owner` and calls `owner.get_all_tasks()`, so it plans across all pets rather than a single one.
+3. `generate_daily_plan()` drops completed tasks, sorts the rest (`sort_tasks`: high priority first, shortest first on ties), then walks the list. Each task that passes `fits_in_time` is given a start time, beginning at `day_start` and placed back to back. Tasks that no longer fit are collected in `scheduler.skipped`.
+4. `detect_conflicts()` flags tasks with overlapping time slots, and `explain_plan()` returns a readable schedule with the ordering rule and any skipped tasks.
+
+
 ## 🖥️ Sample Output
 
 Paste a sample of your app's CLI or Streamlit output here so a reader can see what a generated plan looks like:
 
 ```
-# e.g.:
-# Daily plan for Biscuit (Golden Retriever):
-#   08:00 — Morning walk (30 min) [priority: high]
-#   09:00 — Feeding (10 min) [priority: high]
-#   ...
+==================================================
+Today's Schedule
+==================================================
+Daily plan for Jordan (90 min available):
+  07:30 - Give medication [Mia] (5 min) [priority: high]
+  07:35 - Breakfast [Mia] (10 min) [priority: high]
+  07:45 - Morning walk [Biscuit] (30 min) [priority: high]
+  08:15 - Laser pointer play [Mia] (25 min) [priority: medium]
+  08:40 - Brush coat [Biscuit] (20 min) [priority: low]
+Ordered by priority (high first), then shortest first. Used 90 of 90 min.
 ```
 
 ## 🧪 Testing PawPal+
@@ -67,7 +91,17 @@ pytest --cov
 Sample test output:
 
 ```
-# Paste your pytest output here
+=================================== test session starts ============================================
+platform win32 -- Python 3.14.3, pytest-9.1.1, pluggy-1.7.0
+rootdir: C:\Users\godca\CodePath\ai110-module2show-pawpal-starter
+configfile: pytest.ini
+testpaths: tests
+plugins: anyio-4.15.1
+collected 2 items                                                                                                                                                                                                                         
+
+tests\test_pawpal.py ..                                                                                                                                                                                                             [100%]
+
+==================================== 2 passed in 0.02s ==================================================
 ```
 
 ## 📐 Smarter Scheduling
