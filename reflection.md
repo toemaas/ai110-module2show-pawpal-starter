@@ -27,12 +27,16 @@
 **a. Constraints and priorities**
 
 - What constraints does your scheduler consider (for example: time, priority, preferences)?
+  - Time budget, priority, duration, completion status, overlaps, day start
 - How did you decide which constraints mattered most?
+  - Using intuition and narrowing down which constraints have the most risk. So time and priority came first since every owner has limited time. Priority is important for things like medication and food. 
 
 **b. Tradeoffs**
 
 - Describe one tradeoff your scheduler makes.
+  - A tradeoff the scheduler makers is being greedy for priority and not overly optimal. When generating the daily plan, it sorts tasks by highest priority first, then places each task in order and skips any that can't fit in the remaining time. It never rearranges afterwards, which can give a worse answer than searching all combinations. 
 - Why is that tradeoff reasonable for this scenario?
+  - The tradeoff is reasonable because it's a simple rule: priority is more important than doing a couple of tasks. In real life this tradeoff is used as well. Tasks that include medication or feeding should come first before other tasks like grooming, even if it only tasks a couple minutes. Also, if the owner deems the list is wrong, they can easily fix the plan without much to lose. 
 
 ---
 

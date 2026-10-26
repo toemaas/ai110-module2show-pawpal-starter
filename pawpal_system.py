@@ -1,8 +1,9 @@
-from dataclasses import dataclass, field, fields
-from datetime import datetime, time, timedelta
+from dataclasses import dataclass, field, fields, replace
+from datetime import date, datetime, time, timedelta
 from typing import Optional
 
 PRIORITY_RANK = {"low": 1, "medium": 2, "high": 3}
+RECURRENCE_DAYS = {"daily": 1, "weekly": 7}
 
 
 def _minutes(t: time) -> int:
@@ -20,6 +21,7 @@ class Task:
     completed: bool = False
     pet_name: str = ""
     start_time: Optional[time] = None
+    due_date: Optional[date] = None
 
     @property
     def end_time(self) -> Optional[time]:
@@ -32,6 +34,21 @@ class Task:
     def mark_complete(self) -> None:
         """Mark this task as completed."""
         self.completed = True
+
+    def next_occurrence(self) -> Optional["Task"]:
+        """Return a pending copy due 1 day (daily) or 7 days (weekly) later, else None."""
+        step = RECURRENCE_DAYS.get(self.recurrence.lower())
+        if step is None:
+            return None
+        next_due = (self.due_date or date.today()) + timedelta(days=step)
+        base_id = self.id.split("@")[0]
+        return replace(
+            self,
+            id=f"{base_id}@{next_due.isoformat()}",
+            completed=False,
+            start_time=None,
+            due_date=next_due,
+        )
 
     def is_high_priority(self) -> bool:
         """Return True if this task's priority is 'high'."""
@@ -115,12 +132,49 @@ class Scheduler:
                 self.skipped.append(task)
         return plan
 
+    def complete_task(self, pet_name: str, task_id: str) -> Optional[Task]:
+        """Complete a pet's task and return its new next occurrence, if it recurs."""
+        pet = next((p for p in self.owner.pets if p.name == pet_name), None)
+        if pet is None:
+            raise KeyError(f"No pet named '{pet_name}'")
+        task = next((t for t in pet.tasks if t.id == task_id), None)
+        if task is None:
+            raise KeyError(f"No task '{task_id}' for {pet_name}")
+        if task.completed:
+            return None
+        task.mark_complete()
+        following = task.next_occurrence()
+        if following is not None:
+            pet.add_task(following)
+        return following
+
     def sort_tasks(self, tasks: list[Task]) -> list[Task]:
         """Order tasks by priority (high first), then shortest duration first."""
         return sorted(
             tasks,
             key=lambda t: (-PRIORITY_RANK.get(t.priority.lower(), 0), t.duration_minutes),
         )
+
+    def sort_by_time(self, tasks: list[Task]) -> list[Task]:
+        """Order tasks by start_time (earliest first), with unscheduled tasks last."""
+        return sorted(
+            tasks,
+            key=lambda t: (t.start_time is None, t.start_time or time.min),
+        )
+
+    def filter_tasks(
+        self,
+        tasks: list[Task],
+        completed: Optional[bool] = None,
+        pet_name: Optional[str] = None,
+    ) -> list[Task]:
+        """Return tasks matching completion status and/or pet name (None skips a filter)."""
+        result = tasks
+        if completed is not None:
+            result = [t for t in result if t.completed == completed]
+        if pet_name is not None:
+            result = [t for t in result if t.pet_name.lower() == pet_name.lower()]
+        return list(result)
 
     def fits_in_time(self, task: Task, minutes_left: int) -> bool:
         """Return True if the task's duration fits in the remaining minutes."""
@@ -141,6 +195,31 @@ class Scheduler:
                         if t not in conflicts:
                             conflicts.append(t)
         return conflicts
+
+    def conflict_warnings(self, tasks: Optional[list[Task]] = None) -> list[str]:
+        """Return a warning string for each overlapping pair of timed tasks (never raises)."""
+        if tasks is None:
+            tasks = [t for t in self.owner.get_all_tasks() if not t.completed]
+        timed = sorted(
+            (t for t in tasks if t.start_time is not None),
+            key=lambda t: _minutes(t.start_time),
+        )
+        warnings: list[str] = []
+        active: list[tuple[int, Task]] = []  # (end_minute, task) still running
+        for task in timed:
+            start = _minutes(task.start_time)
+            active = [(end, t) for end, t in active if end > start]
+            for _, other in active:
+                scope = ("same pet" if task.pet_name == other.pet_name
+                         else "different pets")
+                warnings.append(
+                    f"WARNING: '{other.title}' [{other.pet_name or 'no pet'}] "
+                    f"({other.start_time:%H:%M}-{other.end_time:%H:%M}) overlaps "
+                    f"'{task.title}' [{task.pet_name or 'no pet'}] "
+                    f"({task.start_time:%H:%M}-{task.end_time:%H:%M}) ({scope})"
+                )
+            active.append((start + task.duration_minutes, task))
+        return warnings
 
     def explain_plan(self, plan: list[Task]) -> str:
         """Return a readable schedule with the ordering rule and any skipped tasks."""

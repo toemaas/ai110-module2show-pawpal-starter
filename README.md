@@ -106,14 +106,21 @@ tests\test_pawpal.py ..                                                         
 
 ## 📐 Smarter Scheduling
 
-> Fill in once you've implemented scheduling logic.
-
 | Feature | Method(s) | Notes |
 |---------|-----------|-------|
-| Task sorting | | e.g., by priority, duration |
-| Filtering | | e.g., skip tasks if time runs out |
-| Conflict handling | | e.g., overlapping time slots |
-| Recurring tasks | | e.g., daily vs. weekly |
+| Daily plan | `Scheduler.generate_daily_plan` | Greedy: places pending tasks from `day_start` until `available_minutes` runs out; tasks that don't fit go to `Scheduler.skipped`. |
+| Priority sorting | `Scheduler.sort_tasks` | High priority first, then shortest duration first. |
+| Time sorting | `Scheduler.sort_by_time` | Orders tasks by `start_time`, earliest first; unscheduled tasks go last. |
+| Filtering | `Scheduler.filter_tasks` | Filter by completion status and/or pet name (case-insensitive); filters can be combined. |
+| Time-fit check | `Scheduler.fits_in_time` | Tests whether a task's duration fits the minutes remaining. |
+| Conflict warnings | `Scheduler.conflict_warnings` | Returns a warning string for each overlapping pair of timed tasks, same pet or different pets. Never raises. |
+| Conflict detection | `Scheduler.detect_conflicts` | Returns the overlapping `Task` objects themselves. |
+| Recurring tasks | `Task.next_occurrence`, `Scheduler.complete_task` | Completing a "daily" or "weekly" task creates a new copy due 1 or 7 days later, with id `<id>@<due date>`. |
+| Plan explanation | `Scheduler.explain_plan` | Readable schedule showing the ordering rule, time used, and skipped tasks. |
+
+Run `python main.py` to see sorting, filtering, conflict warnings and recurrence demonstrated in the terminal.
+
+**Known limitations:** the planner overwrites any preset `start_time`, does not filter by `due_date`, and does not use `Owner.preferences`.
 
 ## 📸 Demo Walkthrough
 
