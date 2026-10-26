@@ -63,12 +63,16 @@
 **a. What you tested**
 
 - What behaviors did you test?
+  - I tested four types of tests: basic, sorting, recurrence, and conflict detection tests. 
 - Why were these tests important?
+  - These tests were important because: basic tests are foundational to every other behavior. Sorting tests make sure methods like sort_by_time returns chronological order and unscheduled tasks are last. It also makes sure there's no crashes for things like empty inputs. Recurrence tests are important because creating new data can sometimes add wrong, duplicate, or misdated tasks that the user might not notice. It's important to make sure date math and repeat completion are 100% working as intended. Conflict detection tests are important because it's a huge risk for an owner if something like a double-booked plan is generated. Checking that generated plans never conflict makes sure that the planner and checker agree. 
 
 **b. Confidence**
 
 - How confident are you that your scheduler works correctly?
+  - I'm pretty confident the scheduler works correctly. 
 - What edge cases would you test next if you had more time?
+  - Things like zero or negative durations, making sure the UI buttons work as intended
 
 ---
 
@@ -77,11 +81,26 @@
 **a. What went well**
 
 - What part of this project are you most satisfied with?
+  - I'm most satisfied with the testing portion. I think it's really fleshed out and acts as a sanity check for any future updates that might break originally working behavior.
 
 **b. What you would improve**
 
 - If you had another iteration, what would you improve or redesign?
+  - I think I would improve the logic behind the system, specifically the number of classes and overall just plan more with the UML diagram beforehand. I know that it's easier to look back and see what should have changed, but I think writing out a plan would be beneficial. 
 
 **c. Key takeaway**
 
 - What is one important thing you learned about designing systems or working with AI on this project?
+  - Designing systems takes a lot of thinking not just about one part but the whole, overarching goals/requirements in tandem. It's a fine line between knowing what the nitty gritty code is doing and making sure it works, is readable, and isn't too complex while making sure it fits the original goal you set. 
+
+## 6. AI Strategy
+
+**a. Which AI coding assistant features were most effective for building your scheduler?**
+- The ability to give the AI assistant a nudge on what file/parts of a file to read before writing anything. It also was able to use bash to run things to verify, such as the pytests.
+
+**b. Give one example of an AI suggestion you rejected or modified to keep your system design clean.**
+- I modified a suggestion of the AI when it was implementing features of the pawpal system. It came up with complex features that weren't necessarily needed right now, so I modified it to cut down to only 4 new features that were simpler. 
+
+
+**c. How did using separate chat sessions for different phases help you stay organized?**
+- It gave a clear context window of what I was trying to achieve for less hallucination/working in places that was not needed. For example, a new chat after designing the uml diagram, implementing the method stubs, then writing the test cases made it so I could go back to each chat if I wanted to continue writing more tests or continue implementing features. 

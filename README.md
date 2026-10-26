@@ -61,22 +61,20 @@ The system lives in `pawpal_system.py` and is built from four classes. The UML i
 4. `detect_conflicts()` flags tasks with overlapping time slots, and `explain_plan()` returns a readable schedule with the ordering rule and any skipped tasks.
 
 
-## 🖥️ Sample Output
+## ✨ Features
 
-Paste a sample of your app's CLI or Streamlit output here so a reader can see what a generated plan looks like:
+All scheduling logic is in `pawpal_system.py`.
 
-```
-==================================================
-Today's Schedule
-==================================================
-Daily plan for Jordan (90 min available):
-  07:30 - Give medication [Mia] (5 min) [priority: high]
-  07:35 - Breakfast [Mia] (10 min) [priority: high]
-  07:45 - Morning walk [Biscuit] (30 min) [priority: high]
-  08:15 - Laser pointer play [Mia] (25 min) [priority: medium]
-  08:40 - Brush coat [Biscuit] (20 min) [priority: low]
-Ordered by priority (high first), then shortest first. Used 90 of 90 min.
-```
+- **Multi-pet planning.** `Owner.get_all_tasks()` flattens every pet's tasks, so one plan covers the whole household. Each task carries its pet's name.
+- **Priority-then-duration sorting** (`sort_tasks`). Tasks sort by priority rank (high=3, medium=2, low=1, anything unrecognised=0), then by shortest duration. The sort is stable, so full ties keep their original order. It returns a new list and never mutates its input.
+- **Greedy time-budget planner** (`generate_daily_plan`). It drops completed tasks, sorts the rest, then walks the list once against `available_minutes`. A task that fits is assigned a start time and placed back to back, beginning at `day_start`. A task that does not fit is skipped, but later and shorter tasks are still tried, so leftover time gets used. Skipped tasks are kept in `scheduler.skipped` and have their `start_time` cleared. Any preset `start_time` is overwritten.
+- **Chronological sorting** (`sort_by_time`). Orders by `start_time`, earliest first, with unscheduled tasks last. A task at 00:00 counts as scheduled.
+- **Filtering** (`filter_tasks`). Filters by completion status and/or pet name. Pet names match case-insensitively, a filter set to `None` is skipped, and filters combine with AND.
+- **Conflict warnings** (`conflict_warnings`). A sweep over tasks sorted by start time, tracking which timed tasks are still running. Every overlapping pair produces a message with both time ranges, labelled "same pet" or "different pets". It defaults to all pending tasks, ignores unscheduled ones, and never raises or blocks scheduling.
+- **Conflict detection** (`detect_conflicts`). Compares every pair of timed tasks in a plan using the interval test `a.start < b.end and b.start < a.end`. Back-to-back tasks (09:00-09:30 then 09:30-10:00) are not a conflict. It returns each overlapping `Task` once.
+- **Recurring tasks** (`Task.next_occurrence`, `Scheduler.complete_task`). Completing a `daily` or `weekly` task (case-insensitive) creates a pending copy due 1 or 7 days after the task's `due_date` (today if unset). The copy gets the id `<base id>@<YYYY-MM-DD>`, keeps its other fields, and has `start_time` cleared. Completing an already-completed task does nothing, so no duplicate is created. Other recurrence values, including `none`, create no copy.
+- **Safe task management.** `Pet.add_task` rejects duplicate ids, `remove_task` and `complete_task` raise `KeyError` for unknown ids or pets, and `edit_task` rejects unknown fields and refuses to change `id` or `pet_name`.
+- **Plan explanation** (`explain_plan`). Prints each slot with pet, duration and priority, states the ordering rule, reports minutes used, and lists skipped tasks.
 
 ## 🧪 Testing PawPal+
 The tests cover four areas:  
@@ -130,12 +128,116 @@ Run `python main.py` to see sorting, filtering, conflict warnings and recurrence
 
 ## 📸 Demo Walkthrough
 
-Describe your app in numbered steps so a reader can follow along without watching a video:
+### The Streamlit app (`streamlit run app.py`)
 
-1. <!-- Describe this step -->
-2. <!-- Describe this step -->
-3. <!-- Describe this step -->
-4. <!-- Describe this step -->
-5. <!-- Add more steps as needed -->
+**What you can do**
 
-**Screenshot or video** *(optional)*: <!-- Insert a screenshot or link to a demo video here -->
+| Section | Actions |
+|---------|---------|
+| Owner | Set your name and the minutes you have available today. |
+| Pets | Add pets (name, species, age). Duplicate names are rejected. A summary table shows each pet's task count. |
+| Add a Task | Pick a pet, then set title, duration, priority and how often it repeats (none, daily, weekly). |
+| Task List | Filter by pet and by status (pending or completed). Rows are sorted by priority, then shortest first, with summary metrics for the current filter. |
+| Mark a task complete | Complete a task. If it repeats, the next occurrence is created and its due date is shown. |
+| Today's Schedule | Generate the plan. It shows a time-ordered table, minutes used against minutes available, conflict warnings, skipped tasks, and a "Why this plan?" explanation. |
+
+**Example workflow**
+
+1. Set the owner to "Jordan" with 90 minutes available.
+2. Add a pet, "Mia" the cat, then a second pet, "Biscuit" the dog.
+3. Add tasks: "Breakfast" (10 min, high, daily) for Mia and "Evening walk" (30 min, high) for Biscuit, plus a few lower-priority ones.
+4. In the Task List, filter to Biscuit, or to pending tasks only, and see the table re-sort by priority.
+5. Mark "Breakfast" complete. A success message announces the next daily occurrence, due tomorrow.
+6. Click **Generate schedule**. Tasks are placed back to back from `day_start`. Anything that does not fit appears in the skipped warning.
+
+**Scheduler behaviors on display**
+
+- *Sorting:* the task list uses `sort_tasks` and the schedule table uses `sort_by_time`.
+- *Filtering:* the pet and status filters call `filter_tasks`.
+- *Recurrence:* completing a repeating task calls `complete_task`.
+- *Conflict warnings:* the app calls `conflict_warnings` on the plan and on any tasks that already have start times. Because the planner places tasks back to back, the UI normally reports "No time conflicts". The warnings are easiest to see in the CLI demo below.
+
+### The CLI demo (`python main.py`)
+
+`main.py` builds two pets with deliberately out-of-order tasks and walks through each behavior. Due dates depend on the day it is run; this output was captured on 2026-10-26.
+
+```
+==================================================
+Sorting & filtering demo
+==================================================
+
+As added (out of order):
+  18:00  Evening walk         Biscuit  todo
+  12:30  Brush coat           Biscuit  todo
+  --:--  Training session     Biscuit  todo
+  07:30  Breakfast            Mia      todo
+  09:00  Give medication      Mia      done
+  15:15  Laser pointer play   Mia      todo
+
+sort_by_time:
+  07:30  Breakfast            Mia      todo
+  09:00  Give medication      Mia      done
+  12:30  Brush coat           Biscuit  todo
+  15:15  Laser pointer play   Mia      todo
+  18:00  Evening walk         Biscuit  todo
+  --:--  Training session     Biscuit  todo
+
+filter completed=True:
+  09:00  Give medication      Mia      done
+
+filter completed=False:
+  18:00  Evening walk         Biscuit  todo
+  12:30  Brush coat           Biscuit  todo
+  --:--  Training session     Biscuit  todo
+  07:30  Breakfast            Mia      todo
+  15:15  Laser pointer play   Mia      todo
+
+filter pet_name='mia' (case-insensitive):
+  07:30  Breakfast            Mia      todo
+  09:00  Give medication      Mia      done
+  15:15  Laser pointer play   Mia      todo
+
+filter Biscuit + todo, sorted by time:
+  12:30  Brush coat           Biscuit  todo
+  18:00  Evening walk         Biscuit  todo
+  --:--  Training session     Biscuit  todo
+
+==================================================
+Conflict warning demo
+==================================================
+  WARNING: 'Vet visit' [Biscuit] (10:00-11:00) overlaps 'Vaccination' [Mia] (10:00-10:30) (different pets)
+  WARNING: 'Vet visit' [Biscuit] (10:00-11:00) overlaps 'Nail trim' [Biscuit] (10:30-10:45) (same pet)
+  Current pending tasks: no conflicts
+
+  After adding two tasks at 14:00:
+  WARNING: 'Grooming appointment' [Biscuit] (14:00-14:30) overlaps 'Vet checkup' [Mia] (14:00-14:30) (different pets)
+  OK: same-time conflict detected.
+
+==================================================
+Recurring task demo
+==================================================
+  Completed m4 -> new 'Feed dinner' id=m4@2026-10-27 due 2026-10-27
+  Completed b4 -> new 'Flea medicine' id=b4@2026-11-02 due 2026-11-02
+  Completed b2 -> no recurrence, nothing created
+
+==================================================
+Today's Schedule
+==================================================
+Daily plan for Jordan (90 min available):
+  07:30 - Breakfast [Mia] (10 min) [priority: high]
+  07:40 - Evening walk [Biscuit] (30 min) [priority: high]
+  08:10 - Flea medicine [Biscuit] (5 min) [priority: medium]
+  08:15 - Feed dinner [Mia] (10 min) [priority: medium]
+  08:25 - Training session [Biscuit] (15 min) [priority: medium]
+Ordered by priority (high first), then shortest first. Used 70 of 90 min.
+Skipped (not enough time left): Laser pointer play (Mia)
+```
+
+**What the output shows**
+
+- *Sorting:* `sort_by_time` turns the out-of-order list into chronological order, with "Training session" (no start time) last.
+- *Filtering:* completed-only, pending-only, a case-insensitive pet filter (`'mia'` matches Mia), and a combined pet + status filter feeding `sort_by_time`.
+- *Conflict warnings:* overlapping pairs are reported with both time ranges and labelled same pet or different pets. Two tasks at exactly 14:00 are flagged, and unscheduled tasks are ignored.
+- *Recurrence:* completing a daily task creates `m4@2026-10-27`, a weekly task creates `b4@2026-11-02`, and a non-recurring task creates nothing.
+- *Planning:* high-priority tasks come first, then shorter tasks first within a priority. "Laser pointer play" is skipped because the remaining 20 minutes cannot hold its 25. The completed "Give medication" is left out of the plan.
+- *Known quirk:* the plan includes "Feed dinner" and "Flea medicine", the copies due tomorrow and next week, because the planner does not yet filter by `due_date`.

@@ -1,0 +1,74 @@
+classDiagram
+    class Owner {
+        +str name
+        +int available_minutes
+        +time day_start
+        +dict preferences
+        +list~Pet~ pets
+        +add_pet(pet) void
+        +get_all_tasks() list~Task~
+    }
+
+    class Pet {
+        +str name
+        +str species
+        +int age
+        +list~Task~ tasks
+        +add_task(task) void
+        +remove_task(task_id) void
+        +edit_task(task_id, changes) void
+    }
+
+    class Task {
+        +str id
+        +str title
+        +int duration_minutes
+        +str priority
+        +str category
+        +str recurrence
+        +bool completed
+        +str pet_name
+        +time start_time
+        +date due_date
+        +end_time() time
+        +mark_complete() void
+        +next_occurrence() Task
+        +is_high_priority() bool
+    }
+
+    class Scheduler {
+        +Owner owner
+        +list~Task~ skipped
+        +generate_daily_plan() list~Task~
+        +complete_task(pet_name, task_id) Task
+        +sort_tasks(tasks) list~Task~
+        +sort_by_time(tasks) list~Task~
+        +filter_tasks(tasks, completed, pet_name) list~Task~
+        +fits_in_time(task, minutes_left) bool
+        +detect_conflicts(plan) list~Task~
+        +conflict_warnings(tasks) list~str~
+        +explain_plan(plan) str
+    }
+
+    class StreamlitApp {
+        <<app.py>>
+        owner kept in st.session_state
+        task list: filter and sort
+        schedule: sort by time, warnings
+    }
+
+    Owner "1" *-- "0..*" Pet : has
+    Pet "1" *-- "0..*" Task : needs
+    Task ..> Task : next_occurrence creates
+
+    Scheduler --> Owner : plans for
+    Scheduler ..> Task : sorts, filters, schedules
+    Scheduler ..> Pet : complete_task finds pet and calls add_task
+
+    StreamlitApp --> Owner : holds in session state
+    StreamlitApp --> Scheduler : builds per rerun
+    StreamlitApp ..> Pet : add_pet and add_task
+    StreamlitApp ..> Task : creates
+
+    note for Task "end_time is a read-only property: start_time + duration.\nnext_occurrence copies the task (daily +1 day, weekly +7 days)\nwith id 'base@YYYY-MM-DD', completed=False, start_time=None."
+    note for Scheduler "generate_daily_plan: sort_tasks by priority then duration,\ngreedy fit into available_minutes, start_time assigned from day_start.\nTasks that do not fit go to skipped. Conflict checks never block scheduling."
