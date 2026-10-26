@@ -79,13 +79,19 @@ Ordered by priority (high first), then shortest first. Used 90 of 90 min.
 ```
 
 ## 🧪 Testing PawPal+
-
+The tests cover four areas:  
+Basics: marking a task complete, and adding tasks to a pet
+Sorting: Chronological order by start time, unscheduled tasks last, tiebreaker ordering, etc.
+Recurrence: Daily and weekly follow-ups with the right due date, leap-day rollover, duplicates, etc.
+Conflicts:  Duplicate start times, same pets but different pet labels, completed and unscheduled tasks ignored
+## Confidence Level: 4 stars
 ```bash
 # Run the full test suite:
-pytest
+python -m pytest
 
 # Run with coverage:
 pytest --cov
+
 ```
 
 Sample test output:
@@ -97,11 +103,11 @@ rootdir: C:\Users\godca\CodePath\ai110-module2show-pawpal-starter
 configfile: pytest.ini
 testpaths: tests
 plugins: anyio-4.15.1
-collected 2 items                                                                                                                                                                                                                         
+collected 23 items                                                                                                                                                                                                                         
 
 tests\test_pawpal.py ..                                                                                                                                                                                                             [100%]
 
-==================================== 2 passed in 0.02s ==================================================
+==================================== 23 passed in 0.04s ==================================================
 ```
 
 ## 📐 Smarter Scheduling
